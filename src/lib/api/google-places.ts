@@ -10,18 +10,20 @@ import type { GeoCoordinates, Restaurant } from "@/lib/restaurants/types";
 const PLACES_TEXT_SEARCH_URL =
   "https://places.googleapis.com/v1/places:searchText";
 
+type PlacesTextSearchItem = {
+  id?: string;
+  displayName?: { text?: string };
+  formattedAddress?: string;
+  nationalPhoneNumber?: string;
+  location?: { latitude?: number; longitude?: number };
+  rating?: number;
+  userRatingCount?: number;
+  types?: string[];
+  photos?: Array<{ name?: string }>;
+};
+
 interface PlacesTextSearchResponse {
-  places?: Array<{
-    id?: string;
-    displayName?: { text?: string };
-    formattedAddress?: string;
-    nationalPhoneNumber?: string;
-    location?: { latitude?: number; longitude?: number };
-    rating?: number;
-    userRatingCount?: number;
-    types?: string[];
-    photos?: Array<{ name?: string }>;
-  }>;
+  places?: PlacesTextSearchItem[];
 }
 
 function getMapsApiKey(): string {
@@ -61,7 +63,7 @@ export async function searchNearbyRestaurantsWithGooglePlaces(
     input.radiusMeters * PLACES_DISTANCE_FILTER_SLACK,
   );
 
-  async function runTextSearch(textQuery: string): Promise<PlacesTextSearchResponse["places"]> {
+  async function runTextSearch(textQuery: string): Promise<PlacesTextSearchItem[]> {
     const body: Record<string, unknown> = {
       textQuery,
       languageCode,
