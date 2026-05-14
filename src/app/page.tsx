@@ -11,7 +11,7 @@ export default function HomePage() {
               Lunch akinator
             </p>
             <h1 className="text-balance text-3xl font-black leading-[1.12] tracking-tight text-foreground md:text-4xl lg:text-[2.65rem]">
-              오늘 뭐 먹지? · 주변 실시간 추천
+              오늘 뭐 먹지? · 민재의 뻘짓
             </h1>
           </div>
           <div className="liquid-glass-subtle flex flex-col justify-center gap-3 rounded-[1.75rem] p-6 shadow-[0_20px_50px_-24px_oklch(0_0_0/0.45)] md:col-span-4 lg:col-span-5">
