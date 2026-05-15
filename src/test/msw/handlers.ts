@@ -15,8 +15,15 @@ export function placesSearchSuccessHandler() {
           id: "places/ChIJmock",
           displayName: { text: "モックテスト店舗" },
           formattedAddress: "東京都千代田区丸の内1丁目",
+          shortFormattedAddress: "丸の内１丁目",
           nationalPhoneNumber: "03-1234-5678",
+          websiteUri: "https://example.com/mock-restaurant",
           location: { latitude: TOKYO_LAT, longitude: TOKYO_LNG },
+          googleMapsUri: "https://www.google.com/maps/search/?api=1&query=35.681236%2C139.767125",
+          currentOpeningHours: {
+            openNow: true,
+            weekdayDescriptions: ["月曜日: 11:00–15:00, 17:00–22:00", "火曜日: 定休日"],
+          },
         },
       ],
     });

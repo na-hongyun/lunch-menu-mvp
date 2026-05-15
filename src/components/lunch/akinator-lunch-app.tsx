@@ -3,7 +3,7 @@
 import { AkinatorResultCard } from "@/components/lunch/akinator-result-card";
 import { MergedMapExplorerProvider } from "@/components/lunch/merged-map-explorer-provider";
 import { MyListDrawer, MyListDrawerTrigger } from "@/components/lunch/my-list-drawer";
-import { GoogleMapContainer } from "@/components/map/google-map-container";
+import { GoogleMapDynamic } from "@/components/map/google-map-dynamic";
 import { SavedRestaurantsProvider } from "@/contexts/saved-restaurants-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useRestaurantMapExplorer } from "@/contexts/restaurant-map-explorer-context";
 import { formatAnswersInFlowOrder, SCENARIOS } from "@/data/akinator-flow";
 import { useAkinatorSession } from "@/hooks/use-akinator-session";
 import { useGeolocation } from "@/hooks/use-geolocation";
@@ -32,12 +33,78 @@ import {
   NEARBY_RADIUS_CHOICES,
   NEARBY_RADIUS_DEFAULT_M,
 } from "@/lib/constants";
-import type { GeoCoordinates } from "@/lib/restaurants/types";
+import type { GeoCoordinates, Restaurant } from "@/lib/restaurants/types";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, Compass, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Phase = "wizard" | "reveal" | "results";
+
+type AkinatorResultsRestaurantListProps = {
+  ranked: Restaurant[];
+  showFallbackHint: boolean;
+};
+
+function AkinatorResultsRestaurantList({
+  ranked,
+  showFallbackHint,
+}: AkinatorResultsRestaurantListProps) {
+  const { focusRestaurantOnMap } = useRestaurantMapExplorer();
+  const [expandedRestaurantId, setExpandedRestaurantId] = useState<string | null>(null);
+
+  const rankIds = useMemo(() => ranked.map((r) => r.id).join("|"), [ranked]);
+
+  useEffect(() => {
+    setExpandedRestaurantId(null);
+  }, [rankIds]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("Current expanded ID:", expandedRestaurantId ?? "null");
+    }
+  }, [expandedRestaurantId]);
+
+  const handleExpandToggle = useCallback(
+    (restaurant: Restaurant) => {
+      setExpandedRestaurantId((prev) => {
+        const next = prev === restaurant.id ? null : restaurant.id;
+        if (next) {
+          queueMicrotask(() => focusRestaurantOnMap(next));
+        }
+        return next;
+      });
+    },
+    [focusRestaurantOnMap],
+  );
+
+  return (
+    <div className="akinator-results-scroll relative z-[1] isolate flex max-h-[min(70dvh,720px)] min-h-0 flex-col gap-5 overflow-x-visible overflow-y-auto overscroll-y-contain pr-1 !pointer-events-auto [-webkit-overflow-scrolling:touch]">
+      {showFallbackHint ? (
+        <Card className="border-amber-500/35 bg-amber-500/10 shadow-none">
+          <CardContent className="py-4 text-sm leading-relaxed text-foreground">
+            완벽히 일치하는 곳은 없지만, 가까운 순·평점·유사 키워드로 골라 본{" "}
+            <strong>이런 곳은 어때요?</strong> 아래 상위 {Math.min(3, ranked.length)}
+            곳을 먼저 봐 주세요.
+          </CardContent>
+        </Card>
+      ) : null}
+      {ranked.slice(0, 5).map((r, i) => (
+        <AkinatorResultCard
+          key={r.id}
+          restaurant={r}
+          rank={i + 1}
+          featured={i === 0}
+          expandedId={expandedRestaurantId}
+          onExpandToggle={handleExpandToggle}
+          className={cn(
+            i === 0 && "animate-stagger-rise",
+            showFallbackHint && i < 3 && "ring-1 ring-amber-400/40",
+          )}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function AkinatorLunchApp() {
   const geo = useGeolocation(DEFAULT_GEO_FALLBACK);
@@ -106,13 +173,25 @@ export function AkinatorLunchApp() {
   useEffect(() => {
     if (phase !== "reveal") return;
     if (!revealReady) return;
-    if (geo.status === "pending") {
-      setPhase("results");
-      return;
+    /** Places 응답을 기다리면 네트워크/키 문제 시 영원히 reveal에 갇힘 → 타이머 후 무조건 results */
+    if (process.env.NODE_ENV === "development") {
+      console.log("[akinator] reveal → results", {
+        geoStatus: geo.status,
+        recommendationFetched: recommendation.isFetched,
+        recommendationStatus: recommendation.status,
+      });
     }
-    if (!recommendation.isFetched) return;
     setPhase("results");
-  }, [phase, revealReady, recommendation.isFetched, geo.status]);
+  }, [phase, revealReady]);
+
+  /** revealReady 타이머가 깨져도 최대 10초 후에는 결과 화면으로 복구 */
+  useEffect(() => {
+    if (phase !== "reveal") return;
+    const id = window.setTimeout(() => {
+      setPhase((p) => (p === "reveal" ? "results" : p));
+    }, 10_000);
+    return () => window.clearTimeout(id);
+  }, [phase]);
 
   const rankResult = recommendation.data;
   const ranked = useMemo(() => rankResult?.displayList ?? [], [rankResult]);
@@ -152,7 +231,7 @@ export function AkinatorLunchApp() {
     <SavedRestaurantsProvider>
       <MergedMapExplorerProvider searchActive={placesExploreActive} nearbyRestaurants={ranked}>
         <div className="stagger-rise-children flex min-h-0 w-full flex-1 flex-col gap-5 xl:grid xl:min-h-0 xl:grid-cols-12 xl:items-stretch xl:gap-6 xl:overflow-hidden">
-          <section className="flex w-full min-w-0 shrink-0 flex-col gap-5 xl:col-span-5 xl:min-h-0 xl:min-w-0 xl:overflow-hidden 2xl:col-span-4">
+          <section className="relative z-[40] flex w-full min-w-0 shrink-0 flex-col gap-5 xl:col-span-5 xl:min-h-0 xl:min-w-0 xl:overflow-hidden 2xl:col-span-4">
             {phase === "reveal" ? (
               <Card className="border-primary/30 bg-gradient-to-b from-primary/15 to-transparent shadow-none">
                 <CardHeader className="space-y-4">
@@ -360,35 +439,13 @@ export function AkinatorLunchApp() {
                     주변에서 식당 데이터가 비어 있어요. 위치·API 키·Places(New) 설정을 확인해 주세요.
                   </p>
                 ) : (
-                  <div className="akinator-results-scroll flex max-h-[min(70dvh,720px)] min-h-0 flex-col gap-5 overflow-y-auto overscroll-y-contain pr-1 [-webkit-overflow-scrolling:touch]">
-                    {showFallbackHint ? (
-                      <Card className="border-amber-500/35 bg-amber-500/10 shadow-none">
-                        <CardContent className="py-4 text-sm leading-relaxed text-foreground">
-                          완벽히 일치하는 곳은 없지만, 가까운 순·평점·유사 키워드로 골라 본{" "}
-                          <strong>이런 곳은 어때요?</strong> 아래 상위 {Math.min(3, ranked.length)}
-                          곳을 먼저 봐 주세요.
-                        </CardContent>
-                      </Card>
-                    ) : null}
-                    {ranked.slice(0, 5).map((r, i) => (
-                      <AkinatorResultCard
-                        key={r.id}
-                        restaurant={r}
-                        rank={i + 1}
-                        featured={i === 0}
-                        className={cn(
-                          i === 0 && "animate-stagger-rise",
-                          showFallbackHint && i < 3 && "ring-1 ring-amber-400/40",
-                        )}
-                      />
-                    ))}
-                  </div>
+                  <AkinatorResultsRestaurantList ranked={ranked} showFallbackHint={showFallbackHint} />
                 )}
               </div>
             ) : null}
           </section>
 
-          <section className="relative flex min-h-[min(52vh,520px)] flex-1 min-w-0 flex-col gap-4 xl:col-span-7 xl:min-h-0 xl:min-w-0 2xl:col-span-8">
+          <section className="relative z-0 flex min-h-[min(52vh,520px)] flex-1 min-w-0 flex-col gap-4 xl:col-span-7 xl:min-h-0 xl:min-w-0 2xl:col-span-8">
             <div className="liquid-glass flex flex-col gap-3 rounded-[1.75rem] px-5 py-4">
               {(phase === "reveal" || phase === "results") && session.isComplete ? (
                 <div className="flex flex-col gap-3 border-b border-white/10 pb-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
@@ -450,7 +507,7 @@ export function AkinatorLunchApp() {
               </div>
             </div>
 
-            <GoogleMapContainer
+            <GoogleMapDynamic
               baseCenter={mapBaseCenter}
               className="min-h-[min(52vh,560px)] flex-1 lg:min-h-0"
             />

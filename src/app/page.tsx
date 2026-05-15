@@ -1,6 +1,9 @@
 import { AkinatorLunchApp } from "@/components/lunch/akinator-lunch-app";
 import Link from "next/link";
 
+/** 배포·브라우저 캐시로 오래된 HTML이 붙는 경우 완화 (홈만 동적) */
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   return (
     <div className="flex min-h-dvh flex-col px-3 py-5 sm:px-6 lg:px-8 lg:py-7">

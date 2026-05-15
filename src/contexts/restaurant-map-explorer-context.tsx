@@ -18,6 +18,8 @@ export interface RestaurantMapExplorerContextValue {
   selectedRestaurantId: string | null;
   /** 同じ ID を再度選ぶと選択解除 */
   selectRestaurant: (id: string | null) => void;
+  /** カード連携: 常にこの店を選択（トグル解除なし）→ 地図 pan / InfoWindow */
+  focusRestaurantOnMap: (id: string) => void;
 }
 
 const RestaurantMapExplorerContext =
@@ -69,13 +71,20 @@ export function RestaurantMapExplorerProvider({
     });
   }, []);
 
+  const focusRestaurantOnMap = useCallback((id: string) => {
+    const trimmed = id.trim();
+    if (!trimmed || !list.some((r) => r.id === trimmed)) return;
+    setSelectedRestaurantId(trimmed);
+  }, [list]);
+
   const value = useMemo<RestaurantMapExplorerContextValue>(
     () => ({
       restaurants: list,
       selectedRestaurantId,
       selectRestaurant,
+      focusRestaurantOnMap,
     }),
-    [list, selectedRestaurantId, selectRestaurant],
+    [list, selectedRestaurantId, selectRestaurant, focusRestaurantOnMap],
   );
 
   return (

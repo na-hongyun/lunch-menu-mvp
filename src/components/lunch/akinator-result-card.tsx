@@ -1,14 +1,21 @@
 "use client";
 
 import { getPlacePhotoProxyUrl } from "@/lib/api/place-photo-url";
+import { RestaurantAccordionFields } from "@/components/lunch/restaurant-accordion-fields";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { usePlaceReviewSummary } from "@/hooks/use-place-review-summary";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useRestaurantMapExplorer } from "@/contexts/restaurant-map-explorer-context";
 import { summarizeRestaurantPlaceKinds } from "@/lib/format/place-types-ko";
+import {
+  resolveNaverMapSearchUrl,
+  resolveRestaurantMapsUrl,
+} from "@/lib/restaurants/maps-url";
 import type { Restaurant } from "@/lib/restaurants/types";
+import { restaurantTelHref } from "@/lib/restaurants/contact";
 import { cn } from "@/lib/utils";
-import { MapPin, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ChevronDown, ExternalLink, Star } from "lucide-react";
+import { useEffect, useState, type MouseEvent } from "react";
 
 function Stars({ rating }: { rating: number }) {
   const full = Math.round(rating * 2) / 2;
@@ -23,9 +30,10 @@ function Stars({ rating }: { rating: number }) {
 export interface AkinatorResultCardProps {
   restaurant: Restaurant;
   rank: number;
-  /** 첫 카드만 AI 리뷰 요약 호출 (API 절약) */
   featured?: boolean;
   className?: string;
+  expandedId: string | null;
+  onExpandToggle: (restaurant: Restaurant) => void;
 }
 
 export function AkinatorResultCard({
@@ -33,150 +41,187 @@ export function AkinatorResultCard({
   rank,
   featured = false,
   className,
+  expandedId,
+  onExpandToggle,
 }: AkinatorResultCardProps) {
-  const photoUrl = getPlacePhotoProxyUrl(restaurant.primaryPhotoName, 800);
-  const [photoFailed, setPhotoFailed] = useState(false);
-  const showPhoto = Boolean(photoUrl) && !photoFailed;
-
-  useEffect(() => {
-    setPhotoFailed(false);
-  }, [restaurant.id, restaurant.primaryPhotoName]);
-
-  const summary = usePlaceReviewSummary(
-    featured ? restaurant.id : null,
-    restaurant.name,
-  );
+  const isOpen = expandedId === restaurant.id;
+  const { selectedRestaurantId } = useRestaurantMapExplorer();
+  const mapLinked = selectedRestaurantId === restaurant.id;
 
   const placeKindLine = summarizeRestaurantPlaceKinds(restaurant);
+  const photoUrl = isOpen ? getPlacePhotoProxyUrl(restaurant.primaryPhotoName, 900) : null;
+  const [photoFailed, setPhotoFailed] = useState(false);
+
+  const mapsUrl = resolveRestaurantMapsUrl(restaurant);
+  const naverUrl = resolveNaverMapSearchUrl(restaurant);
+
+  const toggleId = `restaurant-card-toggle-${restaurant.id}`;
+  const panelId = `restaurant-card-panel-${restaurant.id}`;
+
+  useEffect(() => {
+    if (!isOpen) setPhotoFailed(false);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (process.env.NODE_ENV !== "development") return;
+    if (!restaurant.address?.trim()) {
+      console.warn("Missing data for address", { id: restaurant.id, name: restaurant.name });
+    }
+    if (!restaurantTelHref(restaurant)) {
+      console.warn("Missing data for phone", { id: restaurant.id, name: restaurant.name });
+    }
+    if (!restaurant.primaryPhotoName?.trim()) {
+      console.warn("Missing data for primaryPhotoName", { id: restaurant.id, name: restaurant.name });
+    }
+  }, [isOpen, restaurant]);
+
+  const handleHeaderClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (process.env.NODE_ENV === "development") {
+      console.log("Card clicked:", restaurant.name);
+    }
+    onExpandToggle(restaurant);
+  };
+
+  const showPhoto = Boolean(photoUrl) && !photoFailed;
 
   return (
     <Card
       className={cn(
-        "overflow-hidden border-white/10 bg-card/90 shadow-none backdrop-blur-md transition-[box-shadow,border-color] duration-300 hover:border-white/15 hover:shadow-[0_18px_40px_-12px_oklch(0_0_0/0.35)]",
-        featured && "ring-2 ring-primary/50 animate-result-drum",
+        "gap-0 py-0",
+        "relative isolate !z-50 !pointer-events-auto transition-[border-color,box-shadow,transform] duration-300 ease-out",
+        isOpen
+          ? "border border-white/22 shadow-[0_26px_60px_-20px_rgba(0,0,0,0.58),0_0_0_1px_rgba(255,255,255,0.1)]"
+          : "border border-white/12 shadow-none",
+        "hover:-translate-y-0.5 hover:border-white/18",
+        mapLinked &&
+          "ring-2 ring-sky-400/85 shadow-[0_0_0_1px_rgba(56,189,248,0.35),0_18px_40px_-12px_oklch(0_0_0/0.35)]",
+        featured && !mapLinked && !isOpen && "ring-2 ring-primary/50 animate-result-drum",
         className,
       )}
     >
-      <div className="relative aspect-[4/3] min-h-[11rem] w-full overflow-hidden bg-muted/40 sm:aspect-[16/9] sm:min-h-[10.5rem]">
-        {showPhoto ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={photoUrl!}
-            alt={restaurant.name}
-            className="size-full object-cover"
-            loading="lazy"
-            decoding="async"
-            draggable={false}
-            onError={() => setPhotoFailed(true)}
-          />
-        ) : (
-          <div className="flex size-full flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-primary/40 via-muted/50 to-accent/35 px-4 text-center">
-            <span className="text-4xl drop-shadow-sm" aria-hidden>
-              🍽️
-            </span>
-            <span className="text-xs font-medium text-foreground/75">사진 없음</span>
-          </div>
+      <button
+        type="button"
+        id={toggleId}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        className={cn(
+          "flex w-full cursor-pointer items-start gap-3 rounded-t-[inherit] border-0 bg-transparent p-4 text-left transition-colors sm:p-5",
+          "hover:bg-muted/15 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
         )}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 pb-4 pt-20 sm:pt-16">
-          <p className="text-balance text-lg font-black leading-[1.35] tracking-tight text-white drop-shadow-md sm:text-xl sm:leading-[1.4]">
+        onClick={handleHeaderClick}
+      >
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="border-0 bg-muted/80 px-2.5 py-0.5 text-[11px] font-black text-foreground">
+              TOP {rank}
+            </Badge>
+            {featured ? (
+              <Badge className="border-0 bg-primary/90 px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground">
+                오늘의 픽
+              </Badge>
+            ) : null}
+          </div>
+          <h3 className="break-keep text-balance text-lg font-black leading-snug tracking-tight text-foreground sm:text-xl">
             {restaurant.name}
+          </h3>
+          <p className="text-sm font-semibold leading-snug text-accent">
+            {placeKindLine || "카테고리 · 미분류"}
           </p>
-          <div className="flex flex-wrap items-center gap-2 text-white">
+          <div className="flex flex-wrap items-center gap-2">
             {typeof restaurant.rating === "number" ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-black/35 px-2 py-0.5 text-amber-300 backdrop-blur-sm">
-                <Star className="size-3.5 fill-current" aria-hidden />
-                <span className="text-xs font-bold tabular-nums">
-                  {(Math.round(restaurant.rating * 2) / 2).toFixed(1)}
-                </span>
-              </span>
+              <Stars rating={restaurant.rating} />
             ) : (
-              <span className="text-[11px] font-medium text-white/75">별점 없음</span>
+              <span className="text-xs font-medium text-muted-foreground">별점 정보 없음</span>
             )}
             {typeof restaurant.userRatingCount === "number" && restaurant.userRatingCount > 0 ? (
-              <span className="text-[11px] font-medium text-white/80">
+              <span className="text-xs text-muted-foreground">
                 리뷰 {restaurant.userRatingCount.toLocaleString()}건
               </span>
             ) : null}
           </div>
         </div>
-        <div className="absolute left-3 top-3 flex gap-2">
-          <Badge className="border-0 bg-black/55 px-3 py-1 text-xs font-black text-white backdrop-blur-sm">
-            TOP {rank}
-          </Badge>
-          {featured ? (
-            <Badge className="border-0 bg-primary/90 px-3 py-1 text-xs font-bold text-primary-foreground">
-              오늘의 픽
-            </Badge>
+        <ChevronDown
+          className={cn(
+            "mt-1 size-6 shrink-0 text-muted-foreground transition-transform duration-300 ease-out",
+            isOpen && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
+
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={toggleId}
+        className={cn(
+          "grid min-h-0 transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
+          isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          {isOpen ? (
+            <div
+              className="space-y-4 border-t border-white/10 px-4 pb-5 pt-4 sm:px-5"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-muted/50">
+                {showPhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photoUrl!}
+                    alt={restaurant.name}
+                    className="size-full object-cover"
+                    loading="eager"
+                    decoding="async"
+                    draggable={false}
+                    onError={() => setPhotoFailed(true)}
+                  />
+                ) : (
+                  <div className="flex size-full min-h-[10rem] flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/30 via-muted/40 to-accent/25 px-4 text-center">
+                    <span className="text-3xl" aria-hidden>
+                      🍽️
+                    </span>
+                    <span className="text-sm font-medium text-muted-foreground">사진 없음</span>
+                  </div>
+                )}
+              </div>
+
+              <RestaurantAccordionFields restaurant={restaurant} accordionOpen={isOpen} />
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="gap-1.5 font-semibold"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(mapsUrl, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  <ExternalLink className="size-3.5 shrink-0" aria-hidden />
+                  Google 지도
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 font-semibold"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(naverUrl, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  네이버 지도
+                </Button>
+              </div>
+            </div>
           ) : null}
         </div>
       </div>
-      <CardContent className="shrink-0 space-y-3 border-t border-white/10 bg-card/95 p-5 pt-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h3 className="text-balance text-xl font-black leading-snug tracking-tight text-foreground md:text-2xl">
-            {restaurant.name}
-          </h3>
-          {typeof restaurant.rating === "number" ? (
-            <Stars rating={restaurant.rating} />
-          ) : (
-            <span className="text-xs text-muted-foreground">별점 정보 없음</span>
-          )}
-        </div>
-        {placeKindLine ? (
-          <p className="text-sm font-semibold leading-snug text-accent">{placeKindLine}</p>
-        ) : null}
-        <p className="flex items-start gap-2 text-sm leading-relaxed text-muted-foreground">
-          <MapPin className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
-          <span>{restaurant.address}</span>
-        </p>
-        {restaurant.phone ? (
-          <p className="text-sm font-medium tabular-nums text-foreground/90">
-            전화{" "}
-            <a
-              href={`tel:${restaurant.phone.replace(/\s/g, "")}`}
-              className="text-primary underline-offset-2 hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {restaurant.phone}
-            </a>
-          </p>
-        ) : null}
-        {typeof restaurant.distanceMeters === "number" ? (
-          <p className="text-xs font-medium text-primary">
-            현재 위치에서 약 {restaurant.distanceMeters}m
-          </p>
-        ) : null}
-        {featured ? (
-          <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-accent">
-              리뷰 요약
-            </p>
-            {summary.isLoading ? (
-              <p className="text-sm text-muted-foreground">리뷰를 읽는 중…</p>
-            ) : summary.data?.status === "ok" ? (
-              <div className="space-y-2">
-                <p className="text-base font-bold leading-snug text-foreground">
-                  {summary.data.headlineKo}
-                </p>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {summary.data.detailKo}
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {summary.data?.status === "no_reviews" ||
-                summary.data?.status === "ai_disabled" ||
-                summary.data?.status === "summary_unavailable"
-                  ? summary.data.message
-                  : "요약을 불러오지 못했습니다."}
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            상세 요약은 첫 번째 추천 카드에서 확인할 수 있어요.
-          </p>
-        )}
-      </CardContent>
     </Card>
   );
 }
