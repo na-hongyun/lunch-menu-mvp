@@ -5,6 +5,7 @@ import type { NearbyRestaurantSearchParams, Restaurant } from "@/lib/restaurants
 
 export class GooglePlacesProxyRestaurantRepository implements IRestaurantRepository {
   async findNearby(params: NearbyRestaurantSearchParams): Promise<Restaurant[]> {
+    /** URLSearchParams 가 UTF-8 쿼리 값을 퍼센트 인코딩하므로 한글 검색어도 안전합니다. */
     const search = new URLSearchParams({
       query: params.searchQuery,
       latitude: String(params.origin.latitude),
