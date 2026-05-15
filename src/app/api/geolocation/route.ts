@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
+import { sanitizeAsciiApiKey } from "@/lib/env/sanitize-api-key";
 
 const GEOLOCATE_URL = "https://www.googleapis.com/geolocation/v1/geolocate";
 
 function getGeolocationApiKey(): string {
-  return (
+  return sanitizeAsciiApiKey(
     process.env.GOOGLE_GEOLOCATION_API_KEY?.trim() ||
-    process.env.GOOGLE_MAPS_API_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ||
-    ""
+      process.env.GOOGLE_MAPS_API_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ||
+      "",
   );
 }
 

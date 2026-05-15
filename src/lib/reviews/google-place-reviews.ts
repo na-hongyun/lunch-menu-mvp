@@ -1,4 +1,5 @@
 import type { PlaceReviewSnippet } from "@/lib/reviews/types";
+import { sanitizeAsciiApiKey } from "@/lib/env/sanitize-api-key";
 
 function getMapsApiKey(): string {
   const key =
@@ -8,7 +9,13 @@ function getMapsApiKey(): string {
       "Missing GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY",
     );
   }
-  return key;
+  const cleaned = sanitizeAsciiApiKey(key);
+  if (!cleaned) {
+    throw new Error(
+      "GOOGLE_MAPS_API_KEY looks empty after removing non-ASCII characters. Check .env for BOM or invalid characters.",
+    );
+  }
+  return cleaned;
 }
 
 /** Places API の resource ID (`places/ChIJ…` または `ChIJ…`) をパス用に正規化 */

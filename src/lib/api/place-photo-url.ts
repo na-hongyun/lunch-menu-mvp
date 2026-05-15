@@ -1,3 +1,5 @@
+import { sanitizeAsciiApiKey } from "@/lib/env/sanitize-api-key";
+
 /**
  * Places API (New) Photo media URL.
  * Resource name looks like `places/{placeId}/photos/{ref}` — path slashes must stay
@@ -19,7 +21,7 @@ export function buildGooglePlacePhotoMediaRequestUrl(
   apiKey: string,
 ): string | null {
   const name = photoResourceName.trim();
-  const key = apiKey.trim();
+  const key = sanitizeAsciiApiKey(apiKey.trim());
   if (!name || !key) return null;
   const params = new URLSearchParams({
     maxWidthPx: String(maxWidthPx),
@@ -51,6 +53,6 @@ export function buildPlacePhotoMediaUrl(
   photoResourceName: string,
   maxWidthPx = 720,
 ): string | null {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? "";
+  const key = sanitizeAsciiApiKey(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "");
   return buildGooglePlacePhotoMediaRequestUrl(photoResourceName, maxWidthPx, key);
 }

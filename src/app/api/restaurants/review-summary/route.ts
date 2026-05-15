@@ -6,6 +6,7 @@ import type {
   ReviewSummarySuccessBody,
 } from "@/lib/reviews/types";
 import { NextResponse } from "next/server";
+import { sanitizeAsciiApiKey } from "@/lib/env/sanitize-api-key";
 
 const SUMMARY_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 const BYPASS_SUMMARY_CACHE_FOR_TEST = process.env.NODE_ENV === "test";
@@ -25,7 +26,7 @@ function jsonNoStore(body: unknown, init?: ResponseInit) {
   });
 }
 
-const geminiKeyAtStartup = process.env.GEMINI_API_KEY?.trim();
+const geminiKeyAtStartup = sanitizeAsciiApiKey(process.env.GEMINI_API_KEY);
 if (geminiKeyAtStartup) {
   console.log(`[review-summary] GEMINI_API_KEY prefix: ${geminiKeyAtStartup.slice(0, 4)}`);
 } else {
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
       return jsonNoStore(payload satisfies ReviewSummarySkippedBody);
     }
 
-    const geminiKey = process.env.GEMINI_API_KEY?.trim();
+    const geminiKey = sanitizeAsciiApiKey(process.env.GEMINI_API_KEY);
     if (!geminiKey) {
       const payload: ReviewSummarySkippedBody = {
         status: "ai_disabled",
