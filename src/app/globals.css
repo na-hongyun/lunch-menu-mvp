@@ -188,6 +188,9 @@
 
   /** Akinator 결과 리스트: 밝은 기본 스크롤바·체인 스크롤 완화 */
   .akinator-results-scroll {
+    position: relative;
+    z-index: 1;
+    pointer-events: auto;
     color-scheme: dark;
     scrollbar-gutter: stable;
     scrollbar-width: thin;

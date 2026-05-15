@@ -43,9 +43,11 @@ async function fetchReviewSummary(input: {
 export function usePlaceReviewSummary(
   placeId: string | null | undefined,
   restaurantName: string,
+  options?: { queryEnabled?: boolean },
 ) {
   const id = placeId?.trim() ?? "";
   const nameForKey = restaurantName.trim() || "このお店";
+  const queryEnabled = Boolean(id) && (options?.queryEnabled ?? true);
 
   const query = useQuery({
     /** placeId만으로는 표시명 변경 시 캐시가 어긋날 수 있어 이름도 키에 포함 */
@@ -55,7 +57,7 @@ export function usePlaceReviewSummary(
         placeId: id,
         restaurantName: nameForKey,
       }),
-    enabled: Boolean(id),
+    enabled: queryEnabled,
     staleTime: REVIEW_SUMMARY_STALE_MS,
     gcTime: REVIEW_SUMMARY_STALE_MS * 2,
     retry: false,

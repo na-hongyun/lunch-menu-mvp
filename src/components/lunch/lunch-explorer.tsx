@@ -4,7 +4,7 @@ import { CategoryStepSelectors } from "@/components/lunch/category-step-selector
 import { MergedMapExplorerProvider } from "@/components/lunch/merged-map-explorer-provider";
 import { MyListDrawer, MyListDrawerTrigger } from "@/components/lunch/my-list-drawer";
 import { RestaurantListPanel } from "@/components/lunch/restaurant-list-panel";
-import { GoogleMapContainer } from "@/components/map/google-map-container";
+import { GoogleMapDynamic } from "@/components/map/google-map-dynamic";
 import { SavedRestaurantsProvider } from "@/contexts/saved-restaurants-context";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -164,7 +164,7 @@ export function LunchExplorer({ categoryTree }: LunchExplorerProps) {
             </div>
           </div>
 
-          <GoogleMapContainer
+          <GoogleMapDynamic
             baseCenter={searchOrigin}
             className="min-h-[min(52vh,560px)] flex-1 lg:min-h-0"
           />

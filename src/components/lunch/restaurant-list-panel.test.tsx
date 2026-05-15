@@ -1,8 +1,9 @@
 import type { Restaurant } from "@/lib/restaurants/types";
 import { RestaurantMapExplorerProvider } from "@/contexts/restaurant-map-explorer-context";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { RestaurantListPanel } from "./restaurant-list-panel";
 
 const SAMPLE_RESTAURANTS: Restaurant[] = [
@@ -23,21 +24,30 @@ function renderPanel(props: {
   errorMessage?: string | null;
 }) {
   return render(
-    <RestaurantMapExplorerProvider restaurants={props.restaurants}>
-      <RestaurantListPanel
-        leafLabel={props.leafLabel}
-        restaurants={props.restaurants}
-        isLoading={props.isLoading ?? false}
-        isError={props.isError ?? false}
-        errorMessage={props.errorMessage ?? null}
-        geoHint="現在地"
-      />
-    </RestaurantMapExplorerProvider>,
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { retry: false } },
+        })
+      }
+    >
+      <RestaurantMapExplorerProvider restaurants={props.restaurants}>
+        <RestaurantListPanel
+          leafLabel={props.leafLabel}
+          restaurants={props.restaurants}
+          isLoading={props.isLoading ?? false}
+          isError={props.isError ?? false}
+          errorMessage={props.errorMessage ?? null}
+          geoHint="現在地"
+        />
+      </RestaurantMapExplorerProvider>
+    </QueryClientProvider>,
   );
 }
 
 describe("RestaurantListPanel", () => {
   it("renders restaurant rows after a successful load", async () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     const user = userEvent.setup();
 
     renderPanel({
@@ -53,6 +63,16 @@ describe("RestaurantListPanel", () => {
     expect(
       screen.getByRole("button", { name: /テストそば店/, pressed: true }),
     ).toBeInTheDocument();
+    expect(openSpy).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /Google 지도/ }));
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining("google.com/maps"),
+      "_blank",
+      "noopener,noreferrer",
+    );
+    openSpy.mockRestore();
   });
 
   it("shows the empty-state copy when the API returns zero rows", () => {

@@ -10,16 +10,27 @@ import type { GeoCoordinates, Restaurant } from "@/lib/restaurants/types";
 const PLACES_TEXT_SEARCH_URL =
   "https://places.googleapis.com/v1/places:searchText";
 
+type OpeningHoursPartial = {
+  weekdayDescriptions?: string[];
+  openNow?: boolean;
+};
+
 type PlacesTextSearchItem = {
   id?: string;
   displayName?: { text?: string };
   formattedAddress?: string;
+  shortFormattedAddress?: string;
   nationalPhoneNumber?: string;
+  internationalPhoneNumber?: string;
   location?: { latitude?: number; longitude?: number };
   rating?: number;
   userRatingCount?: number;
   types?: string[];
   photos?: Array<{ name?: string }>;
+  googleMapsUri?: string;
+  websiteUri?: string;
+  currentOpeningHours?: OpeningHoursPartial;
+  regularOpeningHours?: OpeningHoursPartial;
 };
 
 interface PlacesTextSearchResponse {
@@ -101,7 +112,7 @@ export async function searchNearbyRestaurantsWithGooglePlaces(
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber,places.rating,places.userRatingCount,places.types,places.photos",
+          "places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount,places.types,places.photos,places.googleMapsUri,places.websiteUri,places.currentOpeningHours,places.regularOpeningHours",
       },
       body: JSON.stringify(body),
       cache: "no-store",
@@ -183,10 +194,35 @@ export async function searchNearbyRestaurantsWithGooglePlaces(
     }
 
     const phoneRaw = place.nationalPhoneNumber?.trim();
+    const internationalRaw = place.internationalPhoneNumber?.trim();
+    const formattedPhoneNumber = phoneRaw || internationalRaw || undefined;
     const types = Array.isArray(place.types)
       ? place.types.filter((t): t is string => typeof t === "string" && Boolean(t.trim()))
       : undefined;
     const primaryPhotoName = place.photos?.[0]?.name?.trim() || undefined;
+    const mapsUrl = place.googleMapsUri?.trim() || undefined;
+    const website = place.websiteUri?.trim() || undefined;
+    const shortRaw = place.shortFormattedAddress?.trim();
+    const shortFormattedAddress = shortRaw
+      ? formatAddressForJapan(shortRaw)
+      : undefined;
+
+    const hourLines =
+      place.currentOpeningHours?.weekdayDescriptions?.filter(
+        (s): s is string => typeof s === "string" && Boolean(s.trim()),
+      ) ??
+      place.regularOpeningHours?.weekdayDescriptions?.filter(
+        (s): s is string => typeof s === "string" && Boolean(s.trim()),
+      );
+    const openingHoursWeekdayDescriptions =
+      hourLines && hourLines.length > 0 ? hourLines : undefined;
+    const openNow =
+      typeof place.currentOpeningHours?.openNow === "boolean"
+        ? place.currentOpeningHours.openNow
+        : typeof place.regularOpeningHours?.openNow === "boolean"
+          ? place.regularOpeningHours.openNow
+          : undefined;
+
     const rating =
       typeof place.rating === "number" && Number.isFinite(place.rating)
         ? place.rating
@@ -204,11 +240,17 @@ export async function searchNearbyRestaurantsWithGooglePlaces(
       coordinates,
       distanceMeters,
       categoryLabel: undefined,
-      phone: phoneRaw || undefined,
+      phone: formattedPhoneNumber,
+      formattedPhoneNumber,
+      website,
+      shortFormattedAddress,
+      openingHoursWeekdayDescriptions,
+      openNow,
       rating,
       userRatingCount,
       placeTypes: types && types.length > 0 ? types : undefined,
       primaryPhotoName,
+      mapsUrl,
     });
   }
 

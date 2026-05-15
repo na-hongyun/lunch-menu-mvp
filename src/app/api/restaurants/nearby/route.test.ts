@@ -36,7 +36,11 @@ describe("GET /api/restaurants/nearby", () => {
       id: "places/ChIJmock",
       name: "モックテスト店舗",
       phone: "03-1234-5678",
+      formattedPhoneNumber: "03-1234-5678",
+      website: "https://example.com/mock-restaurant",
+      mapsUrl: "https://www.google.com/maps/search/?api=1&query=35.681236%2C139.767125",
     });
+    expect(body.restaurants[0].openingHoursWeekdayDescriptions?.length).toBeGreaterThan(0);
     expect(body.restaurants[0].distanceMeters).toBeGreaterThanOrEqual(0);
   });
 

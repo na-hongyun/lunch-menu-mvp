@@ -1,7 +1,9 @@
 "use client";
 
 import { RestaurantInfoWindowContent } from "@/components/map/restaurant-info-window-content";
+import { RestaurantMapMarkerPin } from "@/components/map/restaurant-map-marker-pin";
 import { useRestaurantMapExplorer } from "@/contexts/restaurant-map-explorer-context";
+import { GoogleMapsProvider } from "@/providers/google-maps-provider";
 import { useSavedRestaurants } from "@/contexts/saved-restaurants-context";
 import type { GeoCoordinates, Restaurant } from "@/lib/restaurants/types";
 import { cn } from "@/lib/utils";
@@ -10,7 +12,6 @@ import {
   ColorScheme,
   InfoWindow,
   Map,
-  Pin,
   useMap,
 } from "@vis.gl/react-google-maps";
 import { Loader2, MapPin } from "lucide-react";
@@ -92,37 +93,9 @@ function MapExploreCameraRig({
   return null;
 }
 
-function restaurantMarkerPin(
-  active: boolean,
-  saved: boolean,
-): { background: string; borderColor: string; glyphColor: string; scale: number } {
-  if (active) {
-    return {
-      background: "#38bdf8",
-      borderColor: "#ffffff",
-      glyphColor: "#0f172a",
-      scale: 1.1,
-    };
-  }
-  if (saved) {
-    return {
-      background: "#34d399",
-      borderColor: "#ffffff",
-      glyphColor: "#0f172a",
-      scale: 1.02,
-    };
-  }
-  return {
-    background: "#64748b",
-    borderColor: "#ffffff",
-    glyphColor: "#f8fafc",
-    scale: 0.95,
-  };
-}
-
 /**
  * Google Maps とリスト選択コンテキストの連携。
- * ルートに `GoogleMapsProvider` が必要。
+ * 内部で `GoogleMapsProvider` を噛ませる（ルート layout では囲まない）。
  */
 export function GoogleMapContainer({
   baseCenter,
@@ -239,24 +212,25 @@ export function GoogleMapContainer({
   }
 
   return (
-    <div
-      className={cn(
-        "relative min-h-[280px] flex-1 overflow-hidden rounded-[1.75rem] border border-white/10 shadow-[0_28px_80px_-40px_oklch(0_0_0/0.65)] ring-1 ring-white/5",
-        className,
-      )}
-    >
-      <Map
-        className="size-full min-h-[280px]"
-        defaultCenter={initialCenter}
-        defaultZoom={defaultZoom}
-        mapId={mapId}
-        gestureHandling="greedy"
-        disableDefaultUI={false}
-        mapTypeControl={false}
-        streetViewControl={false}
-        fullscreenControl={false}
-        colorScheme={ColorScheme.LIGHT}
+    <GoogleMapsProvider>
+      <div
+        className={cn(
+          "relative z-0 isolate min-h-[280px] flex-1 overflow-hidden rounded-[1.75rem] border border-white/10 shadow-[0_28px_80px_-40px_oklch(0_0_0/0.65)] ring-1 ring-white/5",
+          className,
+        )}
       >
+        <Map
+          className="size-full min-h-[280px]"
+          defaultCenter={initialCenter}
+          defaultZoom={defaultZoom}
+          mapId={mapId}
+          gestureHandling="greedy"
+          disableDefaultUI={false}
+          mapTypeControl={false}
+          streetViewControl={false}
+          fullscreenControl={false}
+          colorScheme={ColorScheme.LIGHT}
+        >
         <MapExploreCameraRig
           userCenter={initialCenter}
           selectedId={selectedRestaurantId}
@@ -278,7 +252,11 @@ export function GoogleMapContainer({
               onClick={() => selectRestaurant(r.id)}
               zIndex={selected ? 50 : saved ? 40 : 10}
             >
-              <Pin {...restaurantMarkerPin(selected, saved)} />
+              <RestaurantMapMarkerPin
+                restaurant={r}
+                selected={selected}
+                saved={saved}
+              />
             </AdvancedMarker>
           );
         })}
@@ -300,7 +278,8 @@ export function GoogleMapContainer({
             />
           </InfoWindow>
         ) : null}
-      </Map>
-    </div>
+        </Map>
+      </div>
+    </GoogleMapsProvider>
   );
 }

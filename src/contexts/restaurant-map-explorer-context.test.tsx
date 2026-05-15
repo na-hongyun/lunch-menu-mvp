@@ -22,8 +22,12 @@ const RB: Restaurant = {
 };
 
 function ExplorerProbe() {
-  const { selectedRestaurantId, selectRestaurant, restaurants } =
-    useRestaurantMapExplorer();
+  const {
+    selectedRestaurantId,
+    selectRestaurant,
+    focusRestaurantOnMap,
+    restaurants,
+  } = useRestaurantMapExplorer();
 
   return (
     <div>
@@ -35,6 +39,9 @@ function ExplorerProbe() {
       <button type="button" onClick={() => selectRestaurant("b")}>
         店舗Bを選択
       </button>
+      <button type="button" onClick={() => focusRestaurantOnMap("a")}>
+        店舗Aにフォーカス
+      </button>
       <button type="button" onClick={() => selectRestaurant(null)}>
         選択解除
       </button>
@@ -43,6 +50,22 @@ function ExplorerProbe() {
 }
 
 describe("RestaurantMapExplorerProvider", () => {
+  it("focusRestaurantOnMap keeps selection when the same id is chosen twice", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <RestaurantMapExplorerProvider restaurants={[RA, RB]}>
+        <ExplorerProbe />
+      </RestaurantMapExplorerProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "店舗Aにフォーカス" }));
+    expect(screen.getByTestId("selected")).toHaveTextContent("a");
+
+    await user.click(screen.getByRole("button", { name: "店舗Aにフォーカス" }));
+    expect(screen.getByTestId("selected")).toHaveTextContent("a");
+  });
+
   it("selectRestaurant toggles off when the same id is chosen twice", async () => {
     const user = userEvent.setup();
 
