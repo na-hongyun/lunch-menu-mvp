@@ -104,7 +104,7 @@ export function GoogleMapContainer({
   className,
 }: GoogleMapContainerProps) {
   const apiKey = sanitizeAsciiApiKey(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "");
-  const { restaurants, selectedRestaurantId, selectRestaurant } =
+  const { restaurants, selectedRestaurantId, selectRestaurant, focusRestaurantOnMap } =
     useRestaurantMapExplorer();
   const { addSavedRestaurant, isSaved } = useSavedRestaurants();
 
@@ -250,7 +250,7 @@ export function GoogleMapContainer({
                 lng: r.coordinates.longitude,
               }}
               title={r.name}
-              onClick={() => selectRestaurant(r.id)}
+              onClick={() => focusRestaurantOnMap(r.id)}
               zIndex={selected ? 50 : saved ? 40 : 10}
             >
               <RestaurantMapMarkerPin
@@ -263,7 +263,9 @@ export function GoogleMapContainer({
         })}
 
         {selectedRestaurant && anchorMarker ? (
+          /* key: 선택이 바뀔 때마다 InfoWindow를 리마운트해 Google 네이티브 창·React 트리가 이전 가게에 고정되지 않게 함 */
           <InfoWindow
+            key={selectedRestaurant.id}
             anchor={anchorMarker}
             headerDisabled
             maxWidth={400}
