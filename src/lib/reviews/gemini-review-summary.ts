@@ -2,6 +2,7 @@ import type {
   PlaceReviewSnippet,
   ReviewSummaryVerdict,
 } from "@/lib/reviews/types";
+import { sanitizeAsciiApiKey } from "@/lib/env/sanitize-api-key";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /** SDK 기본은 v1beta. v1 강제 시 모델 URL이 맞지 않아 fetch 오류가 나는 경우가 많다. */
@@ -84,7 +85,13 @@ export class GeminiReviewSummary {
   private genAI: GoogleGenerativeAI;
 
   constructor(apiKey: string) {
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    const key = sanitizeAsciiApiKey(apiKey);
+    if (!key) {
+      throw new Error(
+        "GEMINI_API_KEY is missing or contains no ASCII key after sanitizing (remove BOM / non-ASCII from .env).",
+      );
+    }
+    this.genAI = new GoogleGenerativeAI(key);
   }
 
   private async tryGenerate(model: string, prompt: string, allowJsonMime: boolean) {

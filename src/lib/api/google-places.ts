@@ -3,6 +3,7 @@ import {
   PLACES_REGION_CODE,
   PLACES_TEXT_LANGUAGE,
 } from "@/lib/constants";
+import { sanitizeAsciiApiKey } from "@/lib/env/sanitize-api-key";
 import { formatAddressForJapan } from "@/lib/format/address-jp";
 import { haversineDistanceMeters } from "@/lib/geo/haversine";
 import type { GeoCoordinates, Restaurant } from "@/lib/restaurants/types";
@@ -45,7 +46,13 @@ function getMapsApiKey(): string {
       "Missing GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY",
     );
   }
-  return key;
+  const cleaned = sanitizeAsciiApiKey(key);
+  if (!cleaned) {
+    throw new Error(
+      "GOOGLE_MAPS_API_KEY looks empty after removing non-ASCII characters. Check .env for BOM, Korean text, or smart quotes around the key.",
+    );
+  }
+  return cleaned;
 }
 
 export interface SearchNearbyRestaurantsGoogleInput {

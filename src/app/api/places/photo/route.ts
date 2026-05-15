@@ -1,4 +1,5 @@
 import { buildGooglePlacePhotoMediaRequestUrl } from "@/lib/api/place-photo-url";
+import { sanitizeAsciiApiKey } from "@/lib/env/sanitize-api-key";
 import { type NextRequest, NextResponse } from "next/server";
 
 const MAX_NAME_LEN = 512;
@@ -24,10 +25,11 @@ export async function GET(req: NextRequest) {
     return new NextResponse(null, { status: 400 });
   }
 
-  const apiKey =
+  const apiKey = sanitizeAsciiApiKey(
     process.env.GOOGLE_MAPS_API_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ||
-    "";
+      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ||
+      "",
+  );
 
   if (!apiKey) {
     return new NextResponse(null, { status: 503 });

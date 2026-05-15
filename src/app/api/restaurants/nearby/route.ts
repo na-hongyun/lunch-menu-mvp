@@ -1,4 +1,5 @@
 import { searchNearbyRestaurantsWithGooglePlaces } from "@/lib/api/google-places";
+import { sanitizeAsciiApiKey } from "@/lib/env/sanitize-api-key";
 import type { GeoCoordinates } from "@/lib/restaurants/types";
 import { NextResponse } from "next/server";
 
@@ -23,10 +24,11 @@ export async function GET(req: Request) {
   const limit =
     limitParsed !== null ? Math.min(Math.max(Math.floor(limitParsed), 1), 20) : undefined;
 
-  const mapsKey =
+  const mapsKey = sanitizeAsciiApiKey(
     process.env.GOOGLE_MAPS_API_KEY?.trim() ||
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ||
-    "";
+      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ||
+      "",
+  );
 
   console.log("[api/nearby] GET", {
     query: query || "(empty)",

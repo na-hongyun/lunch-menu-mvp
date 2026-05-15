@@ -4,6 +4,7 @@ import { RestaurantInfoWindowContent } from "@/components/map/restaurant-info-wi
 import { RestaurantMapMarkerPin } from "@/components/map/restaurant-map-marker-pin";
 import { useRestaurantMapExplorer } from "@/contexts/restaurant-map-explorer-context";
 import { GoogleMapsProvider } from "@/providers/google-maps-provider";
+import { sanitizeAsciiApiKey } from "@/lib/env/sanitize-api-key";
 import { useSavedRestaurants } from "@/contexts/saved-restaurants-context";
 import type { GeoCoordinates, Restaurant } from "@/lib/restaurants/types";
 import { cn } from "@/lib/utils";
@@ -102,7 +103,7 @@ export function GoogleMapContainer({
   defaultZoom = 15,
   className,
 }: GoogleMapContainerProps) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+  const apiKey = sanitizeAsciiApiKey(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "");
   const { restaurants, selectedRestaurantId, selectRestaurant } =
     useRestaurantMapExplorer();
   const { addSavedRestaurant, isSaved } = useSavedRestaurants();
